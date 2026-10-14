@@ -1,0 +1,32 @@
+{
+  "name": "inkscape-batch-vectorizer",
+  "version": "1.0.0",
+  "description": "Batch-Vektorisierung von PNG- und JPG-Dateien über die Inkscape-CLI (Bitmap nachzeichnen).",
+  "type": "module",
+  "bin": {
+    "inkscape-vectorize": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "culori": "^4.0.2",
+    "image-q": "^4.0.0",
+    "sharp": "^0.35.5",
+    "svgo": "^4.1.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,7 @@
+node_modules/
+vectorizer.config.json
+dist/
+output/
+input/*
+!input/.gitkeep
+*.log

@@ -1,0 +1,29 @@
+{
+  "inputDir": "./input",
+  "outputDir": "./output",
+  "extensions": [".png", ".jpg", ".jpeg"],
+  "overwrite": true,
+  "concurrency": 2,
+  "timeoutSeconds": 120,
+  "inkscapePath": null,
+  "trace": {
+    "scans": "auto",
+    "smooth": "auto",
+    "stack": true,
+    "removeBackground": false,
+    "speckles": 2,
+    "smoothCorners": 1.0,
+    "optimize": 0.2
+  },
+  "autoColors": {
+    "minColorDistance": 10,
+    "minColorShare": 0.005
+  },
+  "simplify": {
+    "level": "off",
+    "maxColors": null,
+    "medianSize": null,
+    "svgo": true,
+    "svgoPrecision": null
+  }
+}
