@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ColorAnalysis } from "../src/analyze.ts";
 import type { SimplifySettings, TraceSettings } from "../src/config.ts";
+import type { DetailAnalysis } from "../src/detail.ts";
 import { resolveTrace, SimplifyError } from "../src/simplify.ts";
 
 const trace: TraceSettings = {
@@ -78,14 +79,21 @@ describe("resolveTrace", () => {
     expect(result.speckles).toBe(720);
   });
 
-  it("deckt automatische Farben und zählt den transparenten Hintergrund", () => {
-    const result = resolveTrace({
+  it("zählt den transparenten Hintergrund nur ohne Silhouette", () => {
+    const clipped = resolveTrace({
       trace: { ...trace, scans: "auto", smooth: "auto" },
       simplify: { ...simplify, level: "light" },
       analysis,
     });
-    expect(result.scans).toBe(11);
-    expect(result.smooth).toBe(false);
+    expect(clipped.scans).toBe(10);
+    expect(clipped.smooth).toBe(false);
+
+    const kept = resolveTrace({
+      trace: { ...trace, scans: "auto", smooth: "auto", removeBackground: false },
+      simplify: { ...simplify, level: "light" },
+      analysis,
+    });
+    expect(kept.scans).toBe(11);
   });
 
   it("deckelt automatische Farben mit maxColors und bleibt bei mindestens 2", () => {
@@ -110,12 +118,11 @@ describe("resolveTrace", () => {
     ).toThrow(SimplifyError);
   });
 
-  it("ersetzt transparente Hintergründe über eine Schlüsselfarbe und schaltet Stapeln aus", () => {
+  it("schneidet transparente Hintergründe aus und lässt das Stapeln an", () => {
     const result = resolveTrace({ trace, simplify, analysis });
-    expect(result.keyBackground).toBe(true);
+    expect(result.clipBackground).toBe(true);
     expect(result.removeBackground).toBe(false);
-    expect(result.stack).toBe(false);
-    expect(result.stackSuppressed).toBe(true);
+    expect(result.stack).toBe(true);
   });
 
   it("lässt deckende Bilder und ausgeschaltetes removeBackground unverändert", () => {
@@ -124,7 +131,7 @@ describe("resolveTrace", () => {
       simplify,
       analysis: { ...analysis, hasTransparency: false },
     });
-    expect(opaque.keyBackground).toBe(false);
+    expect(opaque.clipBackground).toBe(false);
     expect(opaque.stack).toBe(true);
     expect(opaque.removeBackground).toBe(false);
 
@@ -133,7 +140,38 @@ describe("resolveTrace", () => {
       simplify,
       analysis,
     });
-    expect(disabled.keyBackground).toBe(false);
+    expect(disabled.clipBackground).toBe(false);
     expect(disabled.stack).toBe(true);
+  });
+
+  it("übernimmt automatische speckles und den Median ohne Stufenfaktor", () => {
+    const detail: DetailAnalysis = {
+      speckles: 24,
+      medianSize: 3,
+      highlights: 2,
+      smallestHighlight: 30,
+      noise: 4,
+    };
+    const result = resolveTrace({
+      trace: { ...trace, speckles: "auto" },
+      simplify: { ...simplify, level: "strong", medianSize: "auto" },
+      analysis: null,
+      detail,
+    });
+    expect(result.speckles).toBe(24);
+    expect(result.medianSize).toBe(3);
+    expect(result.specklesAuto).toBe(true);
+    expect(result.medianAuto).toBe(true);
+    expect(result.scans).toBe(4);
+    expect(result.optimize).toBe(4.25);
+  });
+
+  it("verlangt eine Detailanalyse, wenn speckles oder der Median auf auto steht", () => {
+    expect(() =>
+      resolveTrace({ trace: { ...trace, speckles: "auto" }, simplify, analysis: null, detail: null }),
+    ).toThrow(SimplifyError);
+    expect(() =>
+      resolveTrace({ trace, simplify: { ...simplify, medianSize: "auto" }, analysis: null }),
+    ).toThrow(SimplifyError);
   });
 });

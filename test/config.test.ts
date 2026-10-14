@@ -30,6 +30,8 @@ function validFile(overrides: Partial<ConfigFile> = {}): ConfigFile {
       optimize: 0.2,
     },
     autoColors: { minColorDistance: 10, minColorShare: 0.005 },
+    autoDetail: { maxSpeckles: 100 },
+    flatColors: { mode: "off", colorDistance: 12, maxColors: 12, dilate: 2 },
     simplify: { level: "off", maxColors: null, medianSize: null, svgo: true, svgoPrecision: null },
     ...overrides,
   };
@@ -72,6 +74,8 @@ describe("loadConfig", () => {
     expect(config.timeoutSeconds).toBe(120);
     expect(config.inkscapePath).toBeNull();
     expect(config.autoColors).toEqual({ minColorDistance: 10, minColorShare: 0.005 });
+    expect(config.autoDetail).toEqual({ maxSpeckles: 100 });
+    expect(config.flatColors).toEqual({ mode: "off", colorDistance: 12, maxColors: 12, dilate: 2 });
     expect(config.simplify).toEqual({
       level: "off",
       maxColors: null,
@@ -102,6 +106,28 @@ describe("loadConfig", () => {
     expect(config.trace.scans).toBe("auto");
     expect(config.trace.smooth).toBe("auto");
     expect(config.trace.speckles).toBe(2);
+    expect(config.autoDetail).toEqual({ maxSpeckles: 100 });
+    expect(config.flatColors).toEqual({ mode: "off", colorDistance: 12, maxColors: 12, dilate: 2 });
+  });
+
+  it("akzeptiert auto bei speckles und medianSize", async () => {
+    const dir = await makeTempDir();
+    const configPath = path.join(dir, "vectorizer.config.json");
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        inputDir: "in",
+        outputDir: "out",
+        trace: { ...validFile().trace, speckles: "auto" },
+        simplify: { medianSize: "auto" },
+        autoDetail: { maxSpeckles: 80 },
+      }),
+    );
+
+    const config = await loadConfig(configPath);
+    expect(config.trace.speckles).toBe("auto");
+    expect(config.simplify.medianSize).toBe("auto");
+    expect(config.autoDetail.maxSpeckles).toBe(80);
   });
 
   it("meldet Werte außerhalb der erlaubten Bereiche auf Deutsch", async () => {
@@ -119,10 +145,25 @@ describe("loadConfig", () => {
     await expect(loadConfig(configPath)).rejects.toThrow(
       /trace\.scans: Ganzzahl von 2 bis 256 oder "auto" erwartet/,
     );
-    await expect(loadConfig(configPath)).rejects.toThrow(/trace\.speckles: Ganzzahl von 0 bis 1000 erwartet/);
+    await expect(loadConfig(configPath)).rejects.toThrow(/trace\.speckles: Ganzzahl von 0 bis 1000 oder "auto" erwartet/);
     await expect(loadConfig(configPath)).rejects.toThrow(/trace\.smoothCorners: Zahl von 0 bis 1\.34 erwartet/);
     await expect(loadConfig(configPath)).rejects.toThrow(/trace\.optimize: Zahl von 0 bis 5 erwartet/);
     await expect(loadConfig(configPath)).rejects.toThrow(/concurrency: Ganzzahl ab 1 erwartet/);
+  });
+
+  it("meldet einen ungültigen Flächen-Modus auf Deutsch", async () => {
+    const dir = await makeTempDir();
+    const configPath = path.join(dir, "vectorizer.config.json");
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        inputDir: "in",
+        outputDir: "out",
+        trace: validFile().trace,
+        flatColors: { mode: "halb" },
+      }),
+    );
+    await expect(loadConfig(configPath)).rejects.toThrow(/flatColors\.mode: off, flat oder auto erwartet/);
   });
 
   it("ignoriert eine UTF-8-BOM am Dateianfang", async () => {

@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { ResolvedTraceSettings } from "./config.js";
@@ -166,6 +168,100 @@ export async function traceToSvg(options: {
     return { ok: false, message: "Die Original-Bitmap ist noch in der SVG enthalten" };
   }
   return { ok: true };
+}
+
+export type SilhouetteTrace = { ok: true; d: string; viewBox: string } | { ok: false; message: string };
+
+export async function traceSilhouette(options: {
+  inkscapePath: string;
+  inputPath: string;
+  speckles: number;
+  smoothCorners: number;
+  optimize: number;
+  timeoutMs: number;
+}): Promise<SilhouetteTrace> {
+  return traceMask({ ...options, missingMessage: "Silhouette nicht gefunden" });
+}
+
+export async function traceMask(options: {
+  inkscapePath: string;
+  inputPath: string;
+  speckles: number;
+  smoothCorners: number;
+  optimize: number;
+  timeoutMs: number;
+  missingMessage?: string;
+}): Promise<SilhouetteTrace> {
+  const outputPath = path.join(tmpdir(), `vectorizer-mask-${process.pid}-${randomUUID()}.svg`);
+  try {
+    const traced = await traceToSvg({
+      inkscapePath: options.inkscapePath,
+      inputPath: options.inputPath,
+      outputPath,
+      timeoutMs: options.timeoutMs,
+      trace: {
+        scans: 2,
+        smooth: false,
+        stack: false,
+        removeBackground: false,
+        speckles: options.speckles,
+        smoothCorners: options.smoothCorners,
+        optimize: options.optimize,
+      },
+    });
+    if (!traced.ok) {
+      return traced;
+    }
+    const svg = await readFile(outputPath, "utf8");
+    const viewBox = readViewBox(svg);
+    const silhouette = darkestPath(svg);
+    if (!viewBox || !silhouette) {
+      return { ok: false, message: options.missingMessage ?? "Fläche nicht gefunden" };
+    }
+    return { ok: true, d: silhouette, viewBox };
+  } finally {
+    await rm(outputPath, { force: true });
+  }
+}
+
+export function readViewBox(svg: string): string | null {
+  return /viewBox="([^"]+)"/.exec(svg)?.[1]?.trim() ?? null;
+}
+
+function darkestPath(svg: string): string | null {
+  let best: { d: string; luminance: number } | null = null;
+  for (const match of svg.matchAll(/<path\b([\s\S]*?)\/>/g)) {
+    const body = match[1] ?? "";
+    const d = /\bd="([^"]+)"/.exec(body)?.[1];
+    const fill = readPathFill(body);
+    if (!d || !fill) {
+      continue;
+    }
+    const luminance = 0.2126 * fill.r + 0.7152 * fill.g + 0.0722 * fill.b;
+    if (luminance >= 128) {
+      continue;
+    }
+    if (!best || luminance < best.luminance) {
+      best = { d, luminance };
+    }
+  }
+  return best?.d ?? null;
+}
+
+function readPathFill(body: string): { r: number; g: number; b: number } | null {
+  const style = /\bstyle="([^"]*)"/.exec(body)?.[1] ?? "";
+  const fromStyle = /(?:^|;)\s*fill:\s*([^;]+)/i.exec(style)?.[1];
+  const raw = (fromStyle ?? /\bfill="([^"]+)"/.exec(body)?.[1] ?? "").trim();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(raw);
+  if (!hex?.[1]) {
+    return null;
+  }
+  const value = hex[1].length === 3 ? [...hex[1]].map((part) => `${part}${part}`).join("") : hex[1];
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16),
+  };
 }
 
 function excerpt(text: string | undefined): string {

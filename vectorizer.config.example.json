@@ -11,7 +11,7 @@
     "smooth": "auto",
     "stack": true,
     "removeBackground": false,
-    "speckles": 2,
+    "speckles": "auto",
     "smoothCorners": 1.0,
     "optimize": 0.2
   },
@@ -19,10 +19,19 @@
     "minColorDistance": 10,
     "minColorShare": 0.005
   },
+  "autoDetail": {
+    "maxSpeckles": 100
+  },
+  "flatColors": {
+    "mode": "off",
+    "colorDistance": 12,
+    "maxColors": 12,
+    "dilate": 2
+  },
   "simplify": {
     "level": "off",
     "maxColors": null,
-    "medianSize": null,
+    "medianSize": "auto",
     "svgo": true,
     "svgoPrecision": null
   }

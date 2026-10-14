@@ -1,0 +1,48 @@
+{
+  "--trenner-0": "------------------------------------------------------------",
+  "--trenner-1": "-----------------------------------------------------------",
+  "name": "BOHO-HOCHZEIT",
+  "--trenner-2": "------------------------------------------------------------",
+  "--trenner-3": "-----------------------------------------------------------",
+  "inputDir": "C:/Users/pille/Pictures/dein-freundebuch.de/01 STICKER/00 STICKER OHNE DESIGN/06 - Boho-Hochzeit/Boho-Hochzeit/Einzelassets",
+  "outputDir": "C:/Users/pille/Pictures/dein-freundebuch.de/01 STICKER/00 STICKER OHNE DESIGN/06 - Boho-Hochzeit/",
+  "extensions": [".png", ".jpg", ".jpeg"],
+  "overwrite": true,
+  "concurrency": 2,
+  "timeoutSeconds": 120,
+  "inkscapePath": null,
+  "trace": {
+    "scans": 8,
+    "--Hinweis 'scans': opimaler Wert": "EHER auto; SONST 1 bis 10",
+    "smooth": "auto",
+    "--Hinweis 'smooth': opimaler Wert": "true, false, auto",
+    "stack": true,
+    "removeBackground": true,
+    "speckles": 30,
+    "--Hinweis 'speckles': opimaler Wert": "EHER 30 oder auto; SONST 100 bis 500",
+    "smoothCorners": 1.05,
+    "--Hinweis 'smoothCorners': opimaler Wert": "1.00 bis 1.34",
+    "optimize": 3.250,
+    "--Hinweis 'optimize': opimaler Wert": "2.000 bis 4.500"
+  },
+  "autoColors": {
+    "minColorDistance": 10,
+    "minColorShare": 0.005
+  },
+  "autoDetail": {
+    "maxSpeckles": 100
+  },
+  "simplify": { 
+    "level": "medium",
+    "--Hinweis 'level': opimaler Wert": "off, light, medium, strong",
+    "medianSize": "auto",
+    "--Hinweis 'medianSize': opimaler Wert": "EHER 3 oder auto; SONST 1 bis 5",
+    "svgo": true,
+    "--Hinweis 'svgo': opimaler Wert": "true oder false",
+    "svgoPrecision": null,
+    "--Hinweis 'svgoPrecision': opimaler Wert": "0 bis 6"
+  },
+  "flatColors": {
+    "mode": "off"
+  }
+}

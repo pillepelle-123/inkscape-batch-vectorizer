@@ -1,0 +1,33 @@
+{
+  "inputDir": "C:/Users/pille/Pictures/dein-freundebuch.de/01 STICKER/00 STICKER OHNE DESIGN/05 - Zirkus-Party/Zirkus-Party_Assets/Einzelassets",
+  "outputDir": "C:/Users/pille/Pictures/dein-freundebuch.de/01 STICKER/00 STICKER OHNE DESIGN/05 - Zirkus-Party/",
+  "extensions": [".png", ".jpg", ".jpeg"],
+  "overwrite": true,
+  "concurrency": 2,
+  "timeoutSeconds": 120,
+  "inkscapePath": null,
+  "trace": {
+    "scans": "auto",
+    "smooth": "auto",
+    "stack": true,
+    "removeBackground": true,
+    "speckles": "auto",
+    "--Hinweis 'speckles': opimaler Wert": "EHER 30; SONST 100 bis 500",
+    "smoothCorners": 1.05,
+    "--Hinweis 'smoothCorners': opimaler Wert": "1.00 bis 1.34",
+    "optimize": 3.250,
+    "--Hinweis 'optimize': opimaler Wert": "2.000 bis 4.500"
+  },
+  "autoColors": {
+    "minColorDistance": 10,
+    "minColorShare": 0.005
+  },
+  "autoDetail": {
+    "maxSpeckles": 100
+  },
+  "simplify": { 
+    "level": "off",
+    "--Hinweis 'level': opimaler Wert": "off, light, medium, strong",
+    "medianSize": "auto",
+    "--Hinweis 'medianSize': opimaler Wert": "EHER 3; SONST 1 bis 5"  }  
+}

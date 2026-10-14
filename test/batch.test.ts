@@ -31,6 +31,8 @@ function config(root: string, overrides: Partial<Config> = {}): Config {
       optimize: 0.2,
     },
     autoColors: { minColorDistance: 10, minColorShare: 0.005 },
+    autoDetail: { maxSpeckles: 100 },
+    flatColors: { mode: "off", colorDistance: 12, maxColors: 12, dilate: 2 },
     simplify: { level: "off", maxColors: null, medianSize: null, svgo: true, svgoPrecision: null },
     ...overrides,
   };
@@ -134,6 +136,32 @@ describe("runBatch", () => {
     await expect(
       runBatch(config(root), [path.join(input, "logo.png"), path.join(input, "logo.jpg")], "unused"),
     ).rejects.toThrow(/dieselbe SVG/);
+  });
+
+  it("startet kein weiteres Bild, wenn das Log fehlschlägt", async () => {
+    const root = await makeTempDir();
+    const input = path.join(root, "input");
+    const output = path.join(root, "output");
+    await mkdir(input, { recursive: true });
+    await mkdir(output, { recursive: true });
+    await writeFile(path.join(input, "a.png"), "");
+    await writeFile(path.join(input, "b.png"), "");
+    await writeFile(path.join(output, "a.svg"), "<svg></svg>");
+    await writeFile(path.join(output, "b.svg"), "<svg></svg>");
+
+    const seen: string[] = [];
+    await expect(
+      runBatch(
+        config(root, { overwrite: false, concurrency: 1 }),
+        [path.join(input, "a.png"), path.join(input, "b.png")],
+        "unused",
+        async (outcome) => {
+          seen.push(outcome.inputName);
+          throw new Error("db down");
+        },
+      ),
+    ).rejects.toThrow(/db down/);
+    expect(seen).toEqual(["a.png"]);
   });
 });
 

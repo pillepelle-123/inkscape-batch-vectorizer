@@ -1,9 +1,19 @@
 #!/usr/bin/env node
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { BatchError, collectBatchFiles, printSummary, resolveSingleFile, runBatch } from "./batch.js";
+import {
+  BatchError,
+  BatchStoppedError,
+  collectBatchFiles,
+  printSummary,
+  resolveSingleFile,
+  runBatch,
+  type FileOutcome,
+} from "./batch.js";
 import { ConfigError, loadConfig, simplifyLevels, type SimplifyLevel } from "./config.js";
+import { LogError, openBatchLog, type BatchLog } from "./db.js";
 import { InkscapeError, resolveInkscapeBinary } from "./inkscape.js";
 
 const HELP = `Verwendung:
@@ -68,22 +78,88 @@ export async function main(argv: string[]): Promise<number> {
       positionals.length === 1
         ? [await resolveSingleFile(positionals[0] as string, config)]
         : await collectBatchFiles(config);
+    const rawConfig = JSON.parse((await readFile(configPath, "utf8")).replace(/^\uFEFF/, "")) as unknown;
+    const log = await openBatchLog({
+      inputDir: config.inputDir,
+      outputDir: config.outputDir,
+      configPath,
+      config: rawConfig,
+      simplifyOverride: values.simplify ?? null,
+      singleFile: positionals[0] ?? null,
+      fileCount: files.length,
+    });
 
-    if (files.length === 0) {
-      console.log(`Keine passenden Dateien in ${config.inputDir}`);
-      return 0;
+    try {
+      if (files.length === 0) {
+        await log.finish({
+          durationSeconds: 0,
+          outcomes: [],
+          status: "completed",
+          exitCode: 0,
+          errorMessage: null,
+        });
+        console.log(`Keine passenden Dateien in ${config.inputDir}`);
+        printSummary([], 0, log.batchId);
+        return 0;
+      }
+
+      const started = performance.now();
+      try {
+        const outcomes = await runBatch(config, files, inkscapePath, async (outcome, index) => {
+          await log.insertAsset(outcome, index + 1);
+        });
+        const elapsed = (performance.now() - started) / 1000;
+        const exitCode = outcomes.some((outcome) => outcome.status === "error") ? 1 : 0;
+        await log.finish({
+          durationSeconds: elapsed,
+          outcomes,
+          status: "completed",
+          exitCode,
+          errorMessage: null,
+        });
+        printSummary(outcomes, elapsed, log.batchId);
+        return exitCode;
+      } catch (error) {
+        if (!(error instanceof BatchStoppedError)) {
+          throw error;
+        }
+        await recordAbort(log, error.outcomes, (performance.now() - started) / 1000, error.message);
+        printSummary(error.outcomes, (performance.now() - started) / 1000, log.batchId);
+        console.error(`Log konnte nicht geschrieben werden: ${error.message}`);
+        return 1;
+      }
+    } finally {
+      await log.close();
     }
-
-    const started = performance.now();
-    const outcomes = await runBatch(config, files, inkscapePath);
-    printSummary(outcomes, (performance.now() - started) / 1000);
-    return outcomes.some((outcome) => outcome.status === "error") ? 1 : 0;
   } catch (error) {
+    if (error instanceof LogError) {
+      console.error(`Log konnte nicht geschrieben werden: ${error.message}`);
+      return 1;
+    }
     if (error instanceof ConfigError || error instanceof BatchError || error instanceof InkscapeError) {
       console.error(error.message);
       return 1;
     }
     throw error;
+  }
+}
+
+async function recordAbort(
+  log: BatchLog,
+  outcomes: FileOutcome[],
+  durationSeconds: number,
+  message: string,
+): Promise<void> {
+  try {
+    await log.finish({
+      durationSeconds,
+      outcomes,
+      status: "aborted",
+      exitCode: 1,
+      errorMessage: message,
+    });
+  } catch {
+    // Die Verbindung ist schon ausgefallen. Der Lauf endet trotzdem mit Code 1.
   }
 }
 

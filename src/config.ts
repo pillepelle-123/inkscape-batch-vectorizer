@@ -27,11 +27,28 @@ const smoothSchema = z.union(
 );
 
 const oddKernelSchema = z
-  .number("Ganzzahl oder null erwartet")
-  .int("Ganzzahl oder null erwartet")
+  .number("0, eine ungerade Ganzzahl von 1 bis 15, null oder \"auto\" erwartet")
+  .int("0, eine ungerade Ganzzahl von 1 bis 15, null oder \"auto\" erwartet")
   .min(0, "0 oder eine ungerade Ganzzahl von 1 bis 15 erwartet")
   .max(15, "0 oder eine ungerade Ganzzahl von 1 bis 15 erwartet")
   .refine((value) => value === 0 || value % 2 === 1, "0 oder eine ungerade Ganzzahl von 1 bis 15 erwartet");
+
+const specklesSchema = z.union(
+  [
+    z.literal("auto"),
+    z
+      .number("Ganzzahl von 0 bis 1000 oder \"auto\" erwartet")
+      .int("Ganzzahl von 0 bis 1000 oder \"auto\" erwartet")
+      .min(0, "Ganzzahl von 0 bis 1000 oder \"auto\" erwartet")
+      .max(1000, "Ganzzahl von 0 bis 1000 oder \"auto\" erwartet"),
+  ],
+  "Ganzzahl von 0 bis 1000 oder \"auto\" erwartet",
+);
+
+const medianSizeSchema = z.union(
+  [z.literal("auto"), z.null(), oddKernelSchema],
+  "0, eine ungerade Ganzzahl von 1 bis 15, null oder \"auto\" erwartet",
+);
 
 export const simplifyLevels = ["off", "light", "medium", "strong"] as const;
 
@@ -40,11 +57,7 @@ export const traceSettingsSchema = z.object({
   smooth: smoothSchema,
   stack: z.boolean("true oder false erwartet"),
   removeBackground: z.boolean("true oder false erwartet"),
-  speckles: z
-    .number("Zahl erwartet")
-    .int("Ganzzahl erwartet")
-    .min(0, "Ganzzahl von 0 bis 1000 erwartet")
-    .max(1000, "Ganzzahl von 0 bis 1000 erwartet"),
+  speckles: specklesSchema,
   smoothCorners: z
     .number("Zahl erwartet")
     .min(0, "Zahl von 0 bis 1.34 erwartet")
@@ -80,7 +93,7 @@ export const simplifySchema = z
       .max(256, "Ganzzahl von 2 bis 256 oder null erwartet")
       .nullable()
       .default(null),
-    medianSize: oddKernelSchema.nullable().default(null),
+    medianSize: medianSizeSchema.default(null),
     svgo: z.boolean("true oder false erwartet").default(true),
     svgoPrecision: z
       .number("Ganzzahl von 0 bis 8 oder null erwartet")
@@ -97,6 +110,42 @@ export const simplifySchema = z
     svgo: true,
     svgoPrecision: null,
   });
+
+export const flatColorModes = ["off", "flat", "auto"] as const;
+
+export const flatColorsSchema = z
+  .object({
+    mode: z.enum(flatColorModes, "off, flat oder auto erwartet").default("off"),
+    colorDistance: z
+      .number("Zahl von 0 bis 100 erwartet")
+      .min(0, "Zahl von 0 bis 100 erwartet")
+      .max(100, "Zahl von 0 bis 100 erwartet")
+      .default(12),
+    maxColors: z
+      .number("Ganzzahl von 2 bis 32 erwartet")
+      .int("Ganzzahl von 2 bis 32 erwartet")
+      .min(2, "Ganzzahl von 2 bis 32 erwartet")
+      .max(32, "Ganzzahl von 2 bis 32 erwartet")
+      .default(12),
+    dilate: z
+      .number("Ganzzahl von 0 bis 8 erwartet")
+      .int("Ganzzahl von 0 bis 8 erwartet")
+      .min(0, "Ganzzahl von 0 bis 8 erwartet")
+      .max(8, "Ganzzahl von 0 bis 8 erwartet")
+      .default(2),
+  })
+  .default({ mode: "off", colorDistance: 12, maxColors: 12, dilate: 2 });
+
+export const autoDetailSchema = z
+  .object({
+    maxSpeckles: z
+      .number("Ganzzahl von 0 bis 1000 erwartet")
+      .int("Ganzzahl von 0 bis 1000 erwartet")
+      .min(0, "Ganzzahl von 0 bis 1000 erwartet")
+      .max(1000, "Ganzzahl von 0 bis 1000 erwartet")
+      .default(100),
+  })
+  .default({ maxSpeckles: 100 });
 
 export const configFileSchema = z.object({
   inputDir: z.string("Text erwartet").min(1, "Darf nicht leer sein"),
@@ -119,11 +168,15 @@ export const configFileSchema = z.object({
   inkscapePath: z.string("Text oder null erwartet").min(1, "Darf nicht leer sein").nullable().default(null),
   trace: traceSettingsSchema,
   autoColors: autoColorsSchema,
+  autoDetail: autoDetailSchema,
+  flatColors: flatColorsSchema,
   simplify: simplifySchema,
 });
 
 export type TraceSettings = z.infer<typeof traceSettingsSchema>;
 export type AutoColors = z.infer<typeof autoColorsSchema>;
+export type AutoDetail = z.infer<typeof autoDetailSchema>;
+export type FlatColors = z.infer<typeof flatColorsSchema>;
 export type SimplifyLevel = (typeof simplifyLevels)[number];
 export type SimplifySettings = z.infer<typeof simplifySchema>;
 export type ConfigFile = z.infer<typeof configFileSchema>;
@@ -149,6 +202,8 @@ export type Config = {
   inkscapePath: string | null;
   trace: TraceSettings;
   autoColors: AutoColors;
+  autoDetail: AutoDetail;
+  flatColors: FlatColors;
   simplify: SimplifySettings;
 };
 
@@ -178,6 +233,8 @@ export function resolveConfig(raw: ConfigFile, configDir: string): Config {
     inkscapePath: raw.inkscapePath === null ? null : path.resolve(configDir, raw.inkscapePath),
     trace: raw.trace,
     autoColors: raw.autoColors,
+    autoDetail: raw.autoDetail,
+    flatColors: raw.flatColors,
     simplify: raw.simplify,
   };
 }

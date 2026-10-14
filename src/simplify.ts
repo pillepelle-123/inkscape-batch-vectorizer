@@ -1,5 +1,6 @@
 import type { ColorAnalysis } from "./analyze.js";
 import type { ResolvedTraceSettings, SimplifySettings, TraceSettings } from "./config.js";
+import type { DetailAnalysis } from "./detail.js";
 
 type LevelAdjust = {
   maxColors: number | null;
@@ -42,8 +43,9 @@ export type EffectiveTrace = ResolvedTraceSettings & {
   medianSize: number;
   svgo: boolean;
   svgoPrecision: number;
-  keyBackground: boolean;
-  stackSuppressed: boolean;
+  clipBackground: boolean;
+  specklesAuto: boolean;
+  medianAuto: boolean;
 };
 
 export class SimplifyError extends Error {
@@ -57,11 +59,14 @@ export function resolveTrace(options: {
   trace: TraceSettings;
   simplify: SimplifySettings;
   analysis: ColorAnalysis | null;
+  detail?: DetailAnalysis | null;
 }): EffectiveTrace {
   const level = LEVELS[options.simplify.level];
   const maxColors = options.simplify.maxColors ?? level.maxColors;
-  const medianSize = options.simplify.medianSize ?? level.medianSize;
   const svgoPrecision = options.simplify.svgoPrecision ?? level.svgoPrecision;
+  const specklesAuto = options.trace.speckles === "auto";
+  const medianAuto = options.simplify.medianSize === "auto";
+  const detail = specklesAuto || medianAuto ? requireDetail(options.detail ?? null) : null;
 
   let scans = options.trace.scans === "auto" ? scansFromAnalysis(options) : options.trace.scans;
   if (maxColors !== null) {
@@ -69,29 +74,54 @@ export function resolveTrace(options: {
   }
 
   const smooth = options.trace.smooth === "auto" ? requireAnalysis(options.analysis).smooth : options.trace.smooth;
-  const keyBackground = options.trace.removeBackground && (options.analysis?.hasTransparency ?? false);
-  const stackSuppressed = keyBackground && options.trace.stack;
+  const clipBackground = options.trace.removeBackground && (options.analysis?.hasTransparency ?? false);
+  const medianSize = medianAuto ? requireDetail(detail).medianSize : numericMedian(options.simplify.medianSize, level.medianSize);
+  const speckles = specklesAuto
+    ? clamp(requireDetail(detail).speckles, 0, 1000)
+    : clamp(Math.round(numericSpeckles(options.trace.speckles) * level.specklesFactor), 0, 1000);
 
   return {
     scans: clamp(Math.round(scans), 2, 256),
     smooth,
-    stack: stackSuppressed ? false : options.trace.stack,
+    stack: options.trace.stack,
     removeBackground: false,
-    speckles: clamp(Math.round(options.trace.speckles * level.specklesFactor), 0, 1000),
+    speckles,
     smoothCorners: roundTo(clamp(options.trace.smoothCorners + level.smoothCornersAdd, 0, 1.34), 2),
     optimize: roundTo(clamp(options.trace.optimize + level.optimizeAdd, 0, 5), 3),
     medianSize,
     svgo: options.simplify.svgo,
     svgoPrecision,
-    keyBackground,
-    stackSuppressed,
+    clipBackground,
+    specklesAuto,
+    medianAuto,
   };
 }
 
-function scansFromAnalysis(options: { analysis: ColorAnalysis | null }): number {
+function scansFromAnalysis(options: {
+  trace: TraceSettings;
+  analysis: ColorAnalysis | null;
+}): number {
   const analysis = requireAnalysis(options.analysis);
-  // Die transparente Fläche wird zur Schlüsselfarbe und braucht einen eigenen Scan.
-  return analysis.colors + (analysis.hasTransparency ? 1 : 0);
+  const backgroundBecomesWhite = analysis.hasTransparency && !options.trace.removeBackground;
+  return analysis.colors + (backgroundBecomesWhite ? 1 : 0);
+}
+
+function numericSpeckles(speckles: TraceSettings["speckles"]): number {
+  return speckles === "auto" ? 0 : speckles;
+}
+
+function numericMedian(medianSize: SimplifySettings["medianSize"], fallback: number): number {
+  if (medianSize === "auto" || medianSize === null) {
+    return fallback;
+  }
+  return medianSize;
+}
+
+function requireDetail(detail: DetailAnalysis | null): DetailAnalysis {
+  if (!detail) {
+    throw new SimplifyError("Für automatische Detail-Werte fehlt die Detailanalyse.");
+  }
+  return detail;
 }
 
 function requireAnalysis(analysis: ColorAnalysis | null): ColorAnalysis {
