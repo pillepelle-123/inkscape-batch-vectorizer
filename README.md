@@ -60,6 +60,8 @@ Für jede fertige Datei erscheint eine Zeile:
 
 Am Ende steht eine Zusammenfassung mit der Batch-Nummer. Schlägt mindestens eine Datei fehl, ist der Exit-Code 1. Der Batch läuft bei einem Fehler weiter. Sind keine passenden Dateien vorhanden, endet das Programm mit Exit-Code 0 und schreibt trotzdem einen Lauf mit den Zählern 0.
 
+Steht in `.env` das Flag `GALLERY=true`, schreibt jeder Lauf danach `_galerie.html` in den Ausgabeordner. Die Seite zeigt alle SVG-Dateien der obersten Ebene, keine Unterordner. Jede Datei liegt auf einer weißen Karte; ein Klick öffnet sie groß über der Seite. Ein erneuter Lauf schreibt die Seite neu, neue Dateien kommen dazu und gelöschte fallen weg. Fehlt das Flag oder steht dort nicht `true`, bleibt eine vorhandene Seite unangetastet. Ein Fehler beim Schreiben der Seite ändert den Exit-Code nicht.
+
 ## Konfiguration
 
 Die Standarddatei ist `vectorizer.config.json` im aktuellen Arbeitsverzeichnis. Eine Vorlage liegt in `vectorizer.config.example.json`. Relative Pfade gelten relativ zur Config-Datei. Zahlen in JSON verwenden einen Punkt als Dezimaltrennzeichen, zum Beispiel `1.34`. Unbekannte Schlüssel, etwa Hinweiszeilen, werden ignoriert.

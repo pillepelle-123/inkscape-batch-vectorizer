@@ -14,6 +14,7 @@ import {
 } from "./batch.js";
 import { ConfigError, loadConfig, simplifyLevels, type SimplifyLevel } from "./config.js";
 import { LogError, openBatchLog, type BatchLog } from "./db.js";
+import { GALLERY_FILE, updateGallery } from "./gallery.js";
 import { InkscapeError, resolveInkscapeBinary } from "./inkscape.js";
 
 const HELP = `Verwendung:
@@ -63,6 +64,7 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   const configPath = path.resolve(values.config ?? "vectorizer.config.json");
+  let galleryDir: string | null = null;
 
   try {
     const config = await loadConfig(configPath);
@@ -73,6 +75,7 @@ export async function main(argv: string[]): Promise<number> {
       }
       config.simplify = { ...config.simplify, level: values.simplify };
     }
+    galleryDir = config.outputDir;
     const inkscapePath = await resolveInkscapeBinary(config.inkscapePath);
     const files =
       positionals.length === 1
@@ -141,6 +144,22 @@ export async function main(argv: string[]): Promise<number> {
       return 1;
     }
     throw error;
+  } finally {
+    if (galleryDir) {
+      await publishGallery(galleryDir);
+    }
+  }
+}
+
+async function publishGallery(outputDir: string): Promise<void> {
+  try {
+    const count = await updateGallery(outputDir);
+    if (count !== null) {
+      console.log(`Galerie: ${count} Bilder in ${GALLERY_FILE}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Galerie konnte nicht geschrieben werden: ${message}`);
   }
 }
 
